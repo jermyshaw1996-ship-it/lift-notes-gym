@@ -6,8 +6,9 @@ export const MODES = {
   single: {label:'单侧记录 / 单个负重',short:'单侧 / 单个负重',weight:'重量 kg',reps:'次数',factor:1,help:'仅统计这一侧或这一个负重。左右不同时，分别建“左侧”和“右侧”动作。'}
 };
 export function uid(){return globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+Math.random().toString(36).slice(2);}
+export function systemShortcut(settings,seconds){return settings.shortcutMode==='mapped'?(settings.shortcuts?.[seconds]||null):(settings.shortcutReady?settings.shortcut:null);}
 export function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-export function fresh(){return {schemaVersion:1,exercises:[],sessions:[],activeSessionId:null,settings:{rest:90,shortcut:'健身休息',shortcutReady:false,timerMode:'system'},timer:null};}
+export function fresh(){return {schemaVersion:1,exercises:[],sessions:[],activeSessionId:null,settings:{rest:90,shortcut:'健身休息',shortcutReady:false,shortcutMode:'mapped',shortcuts:{},timerMode:'system'},timer:null};}
 export function validSet(s){return s.weight!=='' && s.reps!=='' && Number.isFinite(Number(s.weight)) && Number(s.weight)>=0 && Number(s.weight)<=2000 && Number.isInteger(Number(s.reps)) && Number(s.reps)>0 && Number(s.reps)<=999;}
 export function volume(entry){return entry.sets.reduce((v,s)=>v+(s.done&&validSet(s)?Number(s.weight)*Number(s.reps)*MODES[entry.mode].factor:0),0);}
 export function doneSets(entry){return entry.sets.filter(s=>s.done&&validSet(s));}
@@ -31,7 +32,10 @@ export function validateState(d){
       const sets=new Set();for(const st of e.sets){if(!st||!safeId(st.id)||sets.has(st.id)||typeof st.done!=='boolean'||!str(st.weight,30)||!str(st.reps,8)|| (st.weight!==''&&(!Number.isFinite(Number(st.weight))||Number(st.weight)<0||Number(st.weight)>2000)) ||(st.reps!==''&&(!Number.isInteger(Number(st.reps))||Number(st.reps)<1||Number(st.reps)>999)) ||(st.done&&!validSet(st)))fail();sets.add(st.id);}
     }
   }
-  const settings={...fresh().settings,...d.settings};if(!str(settings.shortcut,60)||!settings.shortcut.trim()||!Number.isInteger(settings.rest)||settings.rest<10||settings.rest>3600||!['system','local'].includes(settings.timerMode)||typeof settings.shortcutReady!=='boolean')fail();
+  const settings={...fresh().settings,...d.settings};
+  if(d.settings?.shortcutMode===undefined && d.settings?.shortcutReady)settings.shortcutMode='dynamic';
+  if(!str(settings.shortcut,60)||!settings.shortcut.trim()||!Number.isInteger(settings.rest)||settings.rest<10||settings.rest>3600||!['system','local'].includes(settings.timerMode)||typeof settings.shortcutReady!=='boolean'||!['mapped','dynamic'].includes(settings.shortcutMode)||!settings.shortcuts||typeof settings.shortcuts!=='object'||Array.isArray(settings.shortcuts))fail();
+  const shortcuts={};for(const [seconds,name] of Object.entries(settings.shortcuts)){if(!/^(?:[1-9]\d{1,3})$/.test(seconds)||Number(seconds)>3600||!str(name,60))fail();if(name.trim())shortcuts[seconds]=name.trim();}settings.shortcuts=shortcuts;
   return {schemaVersion:1,exercises:d.exercises.map(e=>({id:e.id,name:e.name,mode:e.mode})),sessions:d.sessions.map(s=>({...s,entries:s.entries.map(e=>({...e,note:e.note||''}))})),activeSessionId:ss.has(d.activeSessionId)?d.activeSessionId:null,settings,timer:d.timer&&Number.isFinite(d.timer.end)&&Number.isFinite(d.timer.duration)&&d.timer.duration>=10&&d.timer.duration<=3600?{end:d.timer.end,duration:d.timer.duration}:null};
 }
 export function demoState(){
