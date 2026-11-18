@@ -1,4 +1,4 @@
-const CACHE='lift-notes-shell-v3';
+const CACHE='lift-notes-shell-v4';
 const FILES=['./','./index.html','./app.js','./core.js','./styles.css','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);for(const file of FILES){const request=new Request(new URL(file,self.registration.scope),{cache:'reload'}),response=await fetch(request);if(!response.ok||response.redirected||new URL(response.url).origin!==self.location.origin)throw new Error('Invalid offline resource');if(file==='./'||file==='./index.html'){const text=await response.clone().text();if(!text.includes('data-lift-app="1"'))throw new Error('Not application shell');}await cache.put(request,response);}await self.skipWaiting();})());});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('lift-notes-shell-')&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});
